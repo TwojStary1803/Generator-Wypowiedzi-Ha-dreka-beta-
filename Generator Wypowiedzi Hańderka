@@ -1,0 +1,87 @@
+import random
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# Dane treningowe (przykładowe prawdziwe wypowiedzi Hańdra)
+wypowiedzi = [
+    "Janusz komandos drógi.",
+    "Ty a ta  ziemia to faktycznie jest płaska.",
+    "była lezbą i się puszczałą.",
+    "Trening trening nie ma pierdolenia.",
+    "Gramy kurwa do upadłego.",
+    "Ziomek mi zajebiscie na niej zależy.",
+    "Będę o nią walczyć",
+    "Mam to w piździe.",
+    "Ja mam wyjebane.",
+    "Molestowałem ją ale to z miłości.",
+    "Biorę pneomat.",
+    "Marchewka zodkiewka cebua.",
+    "Ale tak na serio to o co wam chodzi",
+    "Jedna wiara jeden klub",
+    "BKS",
+    "w kalnej do roboty ide",
+    "Ktoś znowu na mnie pierdoli na Bielsku",
+    "Wlatuje na ostro ",
+    "nie chcę o tym gadać",
+    "lecimy pany",
+    "mnie już nie zobaczycie",
+    "dziękuje wam mordy za wszystko",
+    "bum bum",
+    "wyjebane",
+    "ja się na rapie ulicznym wychowałem",
+    "zasady ulicy",
+    "biorę na warsztat",
+    "Tyś jest prze chuj",
+    "Jebać pedałów",
+    "Piorun jebnął w pobliską latarnię uliczną w Wałbrzychu"
+]
+
+# Przygotowanie tokenizera
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(wypowiedzi)
+total_words = len(tokenizer.word_index) + 1
+
+# Przygotowanie danych treningowych
+input_sequences = []
+for wypowiedz in wypowiedzi:
+    sequence = tokenizer.texts_to_sequences([wypowiedz])[0]
+    for i in range(1, len(sequence)):
+        n_gram_sequence = sequence[:i+1]
+        input_sequences.append(n_gram_sequence)
+
+# Dopasowanie danych treningowych do modelu
+max_sequence_len = max([len(sequence) for sequence in input_sequences])
+input_sequences = pad_sequences(input_sequences, maxlen=max_sequence_len, padding='pre')
+xs, labels = input_sequences[:, :-1], input_sequences[:, -1]
+ys = tf.keras.utils.to_categorical(labels, num_classes=total_words)
+
+# Budowa modelu
+model = keras.Sequential()
+model.add(keras.layers.Embedding(total_words, 100, input_length=max_sequence_len-1))
+model.add(keras.layers.Bidirectional(keras.layers.LSTM(300)))                             #ustawianie parametrów sieci neuronowej im większa wartość layer tym lepiej działa kod 
+model.add(keras.layers.Dense(total_words, activation='softmax'))
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+history = model.fit(xs, ys, epochs=1000, verbose=1)                                       #ustawienie ilości prób i jakiś niepotrzebnych rzeczy im większa wartość ephos tym lepiej działa kod 
+
+# Generowanie przykładowych wypowiedzi Hegemona 
+seed_text = "Przykładowa wypowiedź Hańderka: "
+min_words = 4
+max_words = 12
+next_words = random.randint(min_words, max_words)
+
+for _ in range(next_words):
+    sequence = tokenizer.texts_to_sequences([seed_text])[0]
+    sequence = pad_sequences([sequence], maxlen=max_sequence_len-1, padding='pre')
+    predicted = model.predict(sequence, verbose=0)
+    predicted_word_index = np.argmax(predicted)
+    output_word = ""
+    for word, index in tokenizer.word_index.items():
+        if index == predicted_word_index:
+            output_word = word
+            break
+    seed_text += " " + output_word
+
+print(seed_text)
